@@ -350,10 +350,12 @@ function handleChatCompletion(
   const payload = buildCursorRequest(modelId, systemPrompt, userText, turns);
   payload.mcpTools = mcpTools;
 
-  if (body.stream === false) {
-    return handleNonStreamingResponse(payload, accessToken, modelId);
+  // OpenAI semantics: `stream` defaults to false when omitted. Only return
+  // SSE when the caller explicitly opts in with `stream: true`.
+  if (body.stream === true) {
+    return handleStreamingResponse(payload, accessToken, modelId, bridgeKey);
   }
-  return handleStreamingResponse(payload, accessToken, modelId, bridgeKey);
+  return handleNonStreamingResponse(payload, accessToken, modelId);
 }
 
 // --- Message Parsing ---
