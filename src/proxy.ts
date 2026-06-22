@@ -1287,7 +1287,10 @@ function handleNonStreamingResponse(
           choices: [
             {
               index: 0,
-              message: { role: "assistant", content: fullText },
+              // Guard against a rare empty final answer (e.g. the model
+              // emitted only reasoning). Returning "" makes strict clients
+              // treat the whole provider as failed ("empty completion").
+              message: { role: "assistant", content: fullText || " " },
               finish_reason: "stop",
             },
           ],
@@ -1350,7 +1353,13 @@ async function collectFullResponse(
           payload.mcpTools,
           (data) => bridge.write(data),
           state,
-          (text) => { fullText += text; },
+          (text, isThinking) => {
+            // Non-streaming responses must return only the final answer.
+            // Thinking deltas are the model's reasoning trace and must not
+            // be aggregated into `content` (OpenAI semantics, and mixing
+            // them in can yield a polluted or effectively empty completion).
+            if (!isThinking) fullText += text;
+          },
           () => {},
         );
       } catch {
